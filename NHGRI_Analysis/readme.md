@@ -18,3 +18,5 @@ To examine in a statistically rigorous way how different factors used in GWAS st
 
 ## Week 1 (1/5/14)
 * [ X ] Setup Git Repo
+* [ X ] Directory Setup
+* [ X ] GWAS Catalog loaded into R
