@@ -6,5 +6,9 @@ if (is.na(DIR[1])) {
 } else {
   setwd(commandArgs(trailingOnly = TRUE)[1])
 }
-gwascatalog = data.frame(read.table('../gwascatalog.txt',header=TRUE,sep="\t",quote="",comment.char="",as.is=TRUE))
+df = data.frame(read.table('../gwascatalog.txt',header=TRUE,sep="\t",quote="",comment.char="",as.is=TRUE))
 
+# Date Conversions (ISO Standard)
+df$Date.Added.to.Catalog <- as.Date(df$Date.Added.to.Catalog,"%m/%d/%Y")
+df$Date <- as.Date(df$Date,"%m/%d/%Y")
+df$Journal <- factor(df$Journal)
