@@ -2,7 +2,8 @@
 
 DIR = commandArgs(trailingOnly = TRUE)[2]
 if (is.na(DIR[1])) {
-  setwd("/Users/Dan/Documents/git/winter2014/NHGRI_Analysis/data/")
+  user <- Sys.info()[["user"]]
+  setwd(sprintf("/Users/%s/Documents/git/winter2014/NHGRI_Analysis/data/",user))
 } else {
   setwd(DIR)
 }

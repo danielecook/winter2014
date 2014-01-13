@@ -1,9 +1,26 @@
 #!/bin/bash
 # Set directory to current.
 cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd
+
+#################
+# Download Data #
+#################
+
 # Download the GWAS Catalog
 # gwascatalog.txt will be timestamped and saved - as the most recent version.
 wget --timestamping 'http://www.genome.gov/admin/gwascatalog.txt'
+
+# Download Omim Dataset
+wget --timestamping --directory-prefix omim 'ftp://ftp.omim.org/OMIM/mim2gene.txt'
+wget --timestamping --directory-prefix omim 'ftp://ftp.omim.org/OMIM/genemap.key'
+wget --timestamping --directory-prefix omim 'ftp://ftp.omim.org/OMIM/genemap'
+
+# Download Entrez - Gene Ontology (GO) Mapping (Classifes genes by process, function, etc.)
+wget --timestamping --directory-prefix GO 'ftp://ftp.ncbi.nih.gov/gene/DATA/gene2go.gz'
+gunzip 'GO/gene2go.gz'
+grep '^9606\t' 'GO/gene2go' > 'GO/gene2go.human.txt' # Only extracts human GO terms.
+rm gene2go # Remove this file as it is no longer needed.
+
 # Because the catalog is frequently updated - create an archive of prior versions, in case
 # analysis needs to be verified with older versions.
 GWAS_CKSUM=$(md5 -q gwascatalog.txt)
