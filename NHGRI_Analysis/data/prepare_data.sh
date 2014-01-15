@@ -44,7 +44,7 @@ rm GO/gene2go.gz
 
 for var in keggPathway KeggMapDesc knownGene kgXref
 do
-wget --timestamping --directory-prefix test 'ftp://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/$var.txt.gz'
+wget --timestamping --directory-prefix kegg "ftp://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/$var.txt.gz"
 gunzip kegg/$var.txt.gz
 done
 
