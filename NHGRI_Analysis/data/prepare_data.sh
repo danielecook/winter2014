@@ -42,10 +42,10 @@ rm GO/gene2go.gz
 #==============================#
 # Download select files from UCSC (hg19)
 
-for var in keggPathway KeggMapDesc knownGene kgXref
+for var in keggPathway keggMapDesc knownGene kgXref
 do
 wget --timestamping --directory-prefix kegg "ftp://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/$var.txt.gz"
-gunzip kegg/$var.txt.gz
+gunzip -f kegg/$var.txt.gz
 done
 
 # Join kegg pathway description with ID; keggMapDesc is already sorted; kgXref has 82,960 lines.
