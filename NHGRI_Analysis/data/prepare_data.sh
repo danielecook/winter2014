@@ -19,7 +19,13 @@ wget --timestamping --directory-prefix omim 'ftp://ftp.omim.org/OMIM/mim2gene.tx
 wget --timestamping --directory-prefix omim 'ftp://ftp.omim.org/OMIM/genemap.key'
 wget --timestamping --directory-prefix omim 'ftp://ftp.omim.org/OMIM/genemap'
 
-# Reformat OMIM dataset
+# Reformat OMIM dataset, more appropriate format.
+awk '{gsub(/\|/,"\t");print}'  OMIM/genemap | cut -f 1,5,6,7,8,10,11,14,15,16 > genemap.tmp
+echo -e 'Chromosome.Map_Entry_Number\tCytogenetic Location\tGene Symbol(s)\tGene Status\tTitle\tOMIM #\tMethod\tDisorders\tDisorders 2\tDisorders 3' | cat - genemap.tmp > OMIM/genemap.txt
+
+
+
+
 
 # Download Entrez - Gene Ontology (GO) Mapping (Classifes genes by process, function, etc.)
 #==========================#
