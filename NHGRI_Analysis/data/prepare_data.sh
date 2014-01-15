@@ -26,13 +26,26 @@ wget --timestamping --directory-prefix omim 'ftp://ftp.omim.org/OMIM/genemap'
 wget --timestamping --directory-prefix GO 'ftp://ftp.ncbi.nih.gov/gene/DATA/gene2go.gz'
 gunzip 'GO/gene2go.gz'
 egrep '(^#|^9606\t)' 'GO/gene2go' | sed 1d > 'GO/gene2go.human.tmp' # Only extracts human GO terms.
-echo -e 'tax_id\tGeneID\tGO_ID\tEvidence\tQualifier\tGO_term\tPubMed Category' | cat - 'GO/gene2go.human.tmp' > 'GO/gene2go.human.txt'
+echo 'tax_id\tGeneID\tGO_ID\tEvidence\tQualifier\tGO_term\tPubMed Category' | cat - 'GO/gene2go.human.tmp' > 'GO/gene2go.human.txt'
 # Remove Temporary Files
 rm GO/gene2go.human.tmp
 rm GO/gene2go
 rm GO/gene2go.gz
 
+# Download KEGG Data (Pathways)
+#==============================#
+# Download select files from UCSC (hg19)
 
+for var in keggPathway KeggMapDesc knownGene kgXref
+do
+wget --timestamping --directory-prefix test 'ftp://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/$var.txt.gz'
+gunzip kegg/$var.txt.gz
+done
+
+# Join kegg pathway description with ID; keggMapDesc is already sorted; kgXref has 82,960 lines.
+sort kegg/keggPathway.txt -k3 | join -1 3 -2 1 -t $'\t' - kegg/keggMapDesc.txt | cut -f 1,2,4 | sort -k 2 > kegg/kegg_tmp.txt # 58,073 lines.
+sort kegg/KgXref.txt -k 1 | join -1 1 -2 2 -t $'\t' - kegg/kegg_tmp.txt > kegg/kegg_merged.txt
+rm kegg/kegg_tmp.txt
 
 # Because the catalog is frequently updated - create an archive of prior versions, in case
 # analysis needs to be verified with older versions.

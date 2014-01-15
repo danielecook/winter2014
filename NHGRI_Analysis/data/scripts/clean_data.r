@@ -7,7 +7,7 @@ if (is.na(DIR[1])) {
 } else {
   setwd(DIR)
 }
-df = data.frame(read.table('gwascatalog.txt',header=TRUE,sep="\t",quote="",comment.char="",as.is=TRUE))
+df = data.frame(read.table('gwascatalog.txt',header=TRUE,sep="\t",quote="",comment.char="",stringsAsFactors=TRUE))
 
 # Date Conversions (ISO Standard)
 df$Date.Added.to.Catalog <- as.Date(df$Date.Added.to.Catalog,"%m/%d/%Y")
