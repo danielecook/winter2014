@@ -20,3 +20,11 @@ To examine in a statistically rigorous way how different factors used in GWAS st
 * [ X ] Setup Git Repo
 * [ X ] Directory Setup
 * [ X ] GWAS Catalog loaded into R
+
+## Week 2 (1/12/14)
+
+Data from external sources is being integrated for analysis.
+
+* [ X ] Kegg (From UCSC)
+* [ X ] Gene Ontology (GO)
+* [ X ] OMIM (Online Mendelian Inheritance in Man)
