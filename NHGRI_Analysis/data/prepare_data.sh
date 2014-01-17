@@ -24,9 +24,6 @@ awk '{gsub(/\|/,"\t");print}'  OMIM/genemap | cut -f 1,5,6,7,8,10,11,14,15,16 > 
 echo -e 'Chromosome.Map_Entry_Number\tCytogenetic Location\tGene Symbol(s)\tGene Status\tTitle\tOMIM #\tMethod\tDisorders\tDisorders 2\tDisorders 3' | cat - genemap.tmp > OMIM/genemap.txt
 
 
-
-
-
 # Download Entrez - Gene Ontology (GO) Mapping (Classifes genes by process, function, etc.)
 #==========================#
 wget --timestamping --directory-prefix GO 'ftp://ftp.ncbi.nih.gov/gene/DATA/gene2go.gz'
@@ -38,6 +35,7 @@ rm GO/gene2go.human.tmp
 rm GO/gene2go
 rm GO/gene2go.gz
 
+
 # Download KEGG Data (Pathways)
 #==============================#
 # Download select files from UCSC (hg19)
@@ -47,6 +45,14 @@ do
 wget --timestamping --directory-prefix kegg "ftp://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/$var.txt.gz"
 gunzip -f kegg/$var.txt.gz
 done
+
+# Hapmap (downloaded from UCSC Genome Browser)
+#============================================#
+# Download all allele freq. files from hapmap.
+wget -nd -r  -A "allele*.gz" -e robots=off --directory-prefix hapmap "http://hapmap.ncbi.nlm.nih.gov/downloads/frequencies/2010-08_phaseII+III/"
+gunzip hapmap/*.gz # Unzip all the files
+
+./hapmap/hapmap_create_sqlite.py # This generates an SQL file of the hapmap data.
 
 # Join kegg pathway description with ID; keggMapDesc is already sorted; kgXref has 82,960 lines.
 sort kegg/keggPathway.txt -k3 | join -1 3 -2 1 -t $'\t' - kegg/keggMapDesc.txt | cut -f 1,2,4 | sort -k 2 > kegg/kegg_tmp.txt # 58,073 lines.
