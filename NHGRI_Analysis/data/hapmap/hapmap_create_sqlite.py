@@ -5,7 +5,7 @@ import time
 import sqlalchemy
 from sqlalchemy import Table, Column, Integer, String, Float, MetaData, ForeignKey
 from sqlalchemy import create_engine
-
+import datetime
 
 if os.path.isfile('hapmap.db'):
 	os.remove('hapmap.db')
@@ -21,13 +21,13 @@ freq = Table('freq', metadata,
     Column('rs', Integer, index=True),
     Column('chrom', String(5), index=True),
     Column('pos', Integer, index=True),
-    Column('strand',String(1)),
-    Column('build',String(100)),
-    Column('center',String(100)),
-    Column('protLSID',String(100)),
-    Column('assayLSID',String(100)),
-    Column('panelLSID',String(100)),
-    Column('QC_code',String(3)),
+    #Column('strand',String(1)), # always '+''
+    #Column('build',String(100)),
+    #Column('center',String(100)),
+    #Column('protLSID',String(100)),
+    #Column('assayLSID',String(100)),
+    #Column('panelLSID',String(100)),
+    #Column('QC_code',String(3)),
     #
     Column('refallele',String(3)),
     Column('refallele_freq',Float),
@@ -46,10 +46,19 @@ metadata.create_all(engine)
 
 for allele_file in glob.glob("allele*"):
 	f = file(allele_file,'r')
+	print f
+	print datetime.datetime.now()
 	pop = allele_file[allele_file.find('_',allele_file.find('chr')+1)+1:allele_file.find('_',allele_file.find('chr')+1)+4]
 	h = f.readline().replace('#','').replace('\n','')
+	inserts = []
+	c = 0
 	for line in f.readlines():
 		k = dict(zip(h.split(' '), line.split(' ')))
 		k['population'] = pop
-		ins = freq.insert().values(**k)
-		conn.execute(ins)
+		c += 1
+		inserts.append(k)
+		if c == 1000:
+			conn.execute(freq.insert(),inserts)
+			inserts = []
+			c = 0
+	conn.execute(freq.insert(),inserts)
