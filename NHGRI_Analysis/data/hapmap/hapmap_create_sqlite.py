@@ -1,11 +1,15 @@
+#! /usr/local/bin/Python
 import sqlite3
 import os
 import glob
 import time
 import sqlalchemy
-from sqlalchemy import Table, Column, Integer, String, Float, MetaData, ForeignKey
+from sqlalchemy import Table, Column, Index, Integer, String, Float, MetaData, ForeignKey
 from sqlalchemy import create_engine
 import datetime
+
+
+os.chdir(os.path.dirname(__file__))
 
 if os.path.isfile('hapmap.db'):
 	os.remove('hapmap.db')
@@ -17,10 +21,10 @@ metadata = MetaData()
 
 freq = Table('freq', metadata,
 	Column('id', Integer, primary_key=True),
-    Column('population', String(3), index=True),
-    Column('rs', Integer, index=True),
-    Column('chrom', String(5), index=True),
-    Column('pos', Integer, index=True),
+    Column('population', String(3)),
+    Column('rs', Integer),
+    Column('chrom', String(5)),
+    Column('pos', Integer),
     #Column('strand',String(1)), # always '+''
     #Column('build',String(100)),
     #Column('center',String(100)),
@@ -41,8 +45,9 @@ freq = Table('freq', metadata,
     sqlite_autoincrement=True,
 )
 
-metadata.create_all(engine)
 
+
+metadata.create_all(engine)
 
 for allele_file in glob.glob("allele*"):
 	f = file(allele_file,'r')
@@ -62,3 +67,9 @@ for allele_file in glob.glob("allele*"):
 			inserts = []
 			c = 0
 	conn.execute(freq.insert(),inserts)
+
+# Add indices
+Index('population', freq.c.population).create(engine)
+Index('rs', freq.c.rs).create(engine)
+Index('chrom', freq.c.chrom).create(engine)
+Index('pos', freq.c.pos).create(engine)
