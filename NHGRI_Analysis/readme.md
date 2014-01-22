@@ -28,3 +28,10 @@ Data from external sources is being integrated for analysis.
 * [ X ] Kegg (From UCSC)
 * [ X ] Gene Ontology (GO)
 * [ X ] OMIM (Online Mendelian Inheritance in Man)
+
+# Week 3 (1/19/14)
+
+This week I am continuing to work on data formatting. Hoping to have data ready for preliminary analysis. The work
+is mostly focusing on integrating all the data rather than acquisition and base formatting.
+
+* [ X ] Hapmap allele frequency reshaped and ready for merging with GWAS catalog.

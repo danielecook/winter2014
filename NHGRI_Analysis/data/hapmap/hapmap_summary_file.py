@@ -7,22 +7,39 @@ import sqlalchemy
 from sqlalchemy import *
 from sqlalchemy.orm import sessionmaker,query
 import datetime
-
+import pandas as pd
 
 os.chdir(os.path.dirname(__file__))
 
-conn = sqlite3.connect('hapmap.db')
-c = conn.cursor()
+
+engine = create_engine('sqlite:///hapmap.db')
+conn = engine.connect()
+metadata = MetaData()
+
+freq = Table('freq', metadata, autoload=True, autoload_with=engine)
+"""
 f = file('../gwas_catalog_rs_list.txt','r')
 o = file('hapmap_allele_freq.txt','wr')
-for line in f.readlines()[0:10]:
-    row_set = {}
-    for row in c.execute("SELECT * FROM freq WHERE rs == '%s';" % (line.replace('\n',''))):
-        row_set[row[1] + '_a1'] = row[5]
-        row_set[row[1] + '_a2'] = row[8]
-        row_set[row[1] + '_a1_freq'] = row[6]
-        row_set[row[1] + '_a2_freq'] = row[7]
-        
-        o.write('\t'.join([str(x) for x in (row[2],'\n')]))
 
 
+# Write the header line
+o.write ('\t'.join([c.name for c in freq.columns]) + '\n')
+
+for line in f.readlines():
+	print line
+	row_set = {}
+	s = select([freq]).where(freq.c.rs == "%s" % (line.replace('\n','')))
+	for row in conn.execute(s):
+		o.write('\t'.join(map(str,row)) + '\n')
+"""
+# Reshape in Pandas (Pivot)
+df = pd.read_csv('hapmap_allele_freq.txt', sep='\t')
+df = df.drop_duplicates() # Not sure why - but a handful of exact line duplicates are appearing.
+# Drop unneeded columns
+print df
+del df['chrom']
+del df['pos']
+del df['id']
+
+df = df.pivot(index='rs', columns='population')
+df.to_csv('hapmap_allele_freq_reshaped.csv')
