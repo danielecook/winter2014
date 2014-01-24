@@ -36,6 +36,7 @@ for line in f.readlines():
 df = pd.read_csv('hapmap_allele_freq.txt', sep='\t')
 df = df.drop_duplicates() # Not sure why - but a handful of exact line duplicates are appearing.
 # Drop unneeded columns
+print df
 del df['chrom']
 del df['pos']
 del df['id']
