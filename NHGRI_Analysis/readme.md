@@ -36,3 +36,4 @@ is mostly focusing on integrating all the data rather than acquisition and base 
 
 * [ X ] Hapmap allele frequency reshaped and ready for merging with GWAS catalog.
 * [ X ] GO Annotations reshaped - ready for joining with GWAS catalog.
+* [ X ] Kegg Pathways reshaped - ready for joining with GWAS catalog. There are 209 pathways.
