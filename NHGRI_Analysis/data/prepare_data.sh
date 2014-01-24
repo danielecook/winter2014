@@ -33,20 +33,14 @@ echo -e 'Chromosome.Map_Entry_Number\tCytogenetic Location\tGene Symbol(s)\tGene
 #==========================#
 # For a first pass - a wide format of GO term <--> Gene is produced regardless of evidence type.
 wget --timestamping --directory-prefix GO 'ftp://ftp.ncbi.nih.gov/gene/DATA/gene2go.gz'
-# Download Gene Info
-wget --timestamping --directory-prefix GO 'ftp://ftp.ncbi.nih.gov/gene/DATA/GENE_INFO/Mammalia/Homo_sapiens.gene_info.gz'
 gunzip GO/*.gz -f
-# Clean up Gene Information File.
-echo -e 'Gene_ID\tGene Symbol' | cat -  <(cut -f 2,3 'GO/Homo_sapiens.gene_info' | sort -k 1 -n | tail -n +2) > 'GO/gene2go.gene_info.tmp'
 # Filter Human GO Annotation Terms, process file list.
 egrep '(^#|^9606\t)' 'GO/gene2go' | sed 1d | cut -f '2,3,6' -d $'\t' - | sort -k 2 | cat <(echo -e 'Gene_ID\tGO_ID\tGO_term') - > 'GO/go_annotations.tmp'
 # Reformat with Python Script
 ./GO/format.py
 # Join the files
-join -t $'\t' -j 1 GO/gene2go.gene_info.tmp GO/GO_reshaped.tmp > GO/GO_human.txt
 # Remove Temporary Files
 rm -f GO/gene2go
-rm -f GO/Homo_sapiens.gene_info
 rm GO/*.tmp
 
 
