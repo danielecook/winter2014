@@ -5,3 +5,11 @@
 *fwd.txt
 *.db
 *.txt
+NHGRI_Analysis/data/hapmap/hapmap.db-journal
+*.tmp
+NHGRI_Analysis/data/GO/gene2go
+*.txt
+*.csv
+NHGRI_Analysis/data/omim/*
+!gwascatalog.txt
+!gwas_catalog_rs_list.txt

@@ -44,13 +44,11 @@ gunzip GO/*.gz -f
 egrep '(^#|^9606\t)' 'GO/gene2go' | sed 1d | cut -f '2,3,6' -d $'\t' - | sort -k 2 | cat <(echo -e 'Gene_ID\tGO_ID\tGO_term') - > 'GO/go_annotations.tmp'
 # Reformat with Python Script
 ./GO/format.py
-<<<<<<< HEAD
 # Join the files
 # Remove Temporary Files
 rm -f GO/gene2go
 =======
 # Remove Temporary Files
->>>>>>> 2bf5ca0f99f54a45d1401931d64e336f842e5a1d
 rm GO/*.tmp
 
 # Download KEGG Data (Pathways)
