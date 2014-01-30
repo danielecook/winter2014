@@ -4,6 +4,7 @@ cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd
 
 # Install Dependencies
 brew install ssed
+pip install csvkit
 
 #################
 # Download Data #
@@ -22,6 +23,10 @@ iconv -c -f utf-8 -t ascii  gwascatalog.txt | cut -f 22 | tr ',' '\n' | tr ':' '
 #====================#
 wget --timestamping 'ftp://nlmpubs.nlm.nih.gov/online/mesh/.meshtrees/mtrees2014.bin' -O MeSH/mtrees2014.txt
 
+# Download GWAS-EFO mapping
+#===========================#
+wget --timestamping --directory-prefix EFO 'http://wwwdev.ebi.ac.uk/fgpt/gwas/ontology/GWAS-EFO-Mappings201302.xlsx'
+python in2csv EFO/GWAS-EFO-Mappings201302.xlsx > EFO/GWAS-EFO-Mappings201302.csv
 
 
 # Download Omim Dataset
