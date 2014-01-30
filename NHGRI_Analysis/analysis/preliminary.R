@@ -28,8 +28,8 @@ m <- gregexpr(c("^([0-9,]{3,7})"),df[,"Initial.Sample.Size"][1:200])
 regmatches(x,m=m)
 
 extract_study_population <- function(col) {
-	x <- df[,col][1:500]
-	m<- str_match_all(x,"^([0-9,]{3,7}) (.*?) ancestry (.*?), ([0-9,]{3,7}) (.*?) ancestry (.*)")
+	x <- df[,col]
+	df$test <- str_match_all(x,"^([0-9,]{3,7}) (.*?) ancestry (.*?), ([0-9,]{3,7}) (.*?) ancestry (.*)")
 	do.call(rbind.data.frame,m)
 }
 

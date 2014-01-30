@@ -19,6 +19,11 @@ wget --timestamping 'http://www.genome.gov/admin/gwascatalog.txt'
 iconv -c -f utf-8 -t ascii  gwascatalog.txt | cut -f 22 | tr ',' '\n' | tr ':' '\n' | grep rs* | sort -k1 | uniq | awk '{$1=$1}{ print }'  > gwas_catalog_rs_list.txt
 
 
+# Download the Disease Ontology (DOID)
+#======================================#
+
+wget --timestamping ''
+
 # Download Omim Dataset
 #==========================#
 

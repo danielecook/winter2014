@@ -35,5 +35,8 @@ This week I am continuing to work on data formatting. Hoping to have data ready 
 is mostly focusing on integrating all the data rather than acquisition and base formatting.
 
 * [ X ] Hapmap allele frequency reshaped and ready for merging with GWAS catalog.
-* [ X ] GO Annotations reshaped - ready for joining with GWAS catalog.
+* [ X ] GO Annotations reshaped - ready for joining with GWAS catalog. There are 586 GO terms being incorporated.
 * [ X ] Kegg Pathways reshaped - ready for joining with GWAS catalog. There are 209 pathways.
+
+# Week 4 (1/26/14)
+
