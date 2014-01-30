@@ -18,15 +18,14 @@ wget --timestamping 'http://www.genome.gov/admin/gwascatalog.txt'
 # Generate unique, sorted rs (SNP) list.
 iconv -c -f utf-8 -t ascii  gwascatalog.txt | cut -f 22 | tr ',' '\n' | tr ':' '\n' | grep rs* | sort -k1 | uniq | awk '{$1=$1}{ print }'  > gwas_catalog_rs_list.txt
 
+# Download MeSH Terms
+#====================#
+wget --timestamping 'ftp://nlmpubs.nlm.nih.gov/online/mesh/.meshtrees/mtrees2014.bin' -O MeSH/mtrees2014.txt
 
-# Download the Disease Ontology (DOID)
-#======================================#
 
-wget --timestamping ''
 
 # Download Omim Dataset
 #==========================#
-
 wget --timestamping --directory-prefix omim 'ftp://ftp.omim.org/OMIM/mim2gene.txt'
 wget --timestamping --directory-prefix omim 'ftp://ftp.omim.org/OMIM/genemap.key'
 wget --timestamping --directory-prefix omim 'ftp://ftp.omim.org/OMIM/genemap'
