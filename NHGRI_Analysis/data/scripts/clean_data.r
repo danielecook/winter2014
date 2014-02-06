@@ -4,6 +4,7 @@ library(stringr)
 library(reshape2)
 library("annotate")
 library(RUnit)
+library(data.table)
 
 DIR = commandArgs(trailingOnly = TRUE)[2]
 if (is.na(DIR[1])) {
@@ -12,14 +13,49 @@ if (is.na(DIR[1])) {
 } else {
   setwd(DIR)
 }
+
+# Load Data
 df = data.frame(read.table('gwascatalog.txt',header=TRUE,sep="\t",quote="",comment.char="",stringsAsFactors=TRUE))
 GO = data.frame(read.table('GO/GO_reshaped.txt',header=T,sep='\t',stringsAsFactors=T))
+
+
+# Hapmap Allele Frequency Data
+HMAF = data.frame(read.table('hapmap/hapmap_allele_freq_reshaped.txt',header=T,sep=",",stringsAsFactors=T)) 
+
+# Clean up the hapmap allele frequency data.
+names(HMAF) <- gsub("\\.\\.","",gsub("\\.\\.\\.\\.","-",gsub("X..","",names(HMAF))))
+
+# Remove unnecessary columns
+HMAF <- HMAF[,-grep("id|chrom",colnames(HMAF))]
+
+condense_columns <- function(df,col_name, col_search) {
+  df[[col_name]] <- NA
+  for (p in colnames(df[,grep(col_search,names(df))])) {
+    s <- is.na(df[[col_name]]) & (df[[p]] != "" & !is.na(df[[p]]))
+    df[[col_name]][s] <-  as.character(df[[p]][s])
+  }
+  df <- df[,-grep(sub("-","\\\\-",col_search),colnames(df))]
+  df
+}
+
+HMAF <- condense_columns(HMAF,"pos","pos-")
+HMAF <- condense_columns(HMAF,"refallele","refallele-")
+HMAF <- condense_columns(HMAF,"otherallele","otherallele-")
+
+
 
 # Date Conversions (ISO Standard)
 df$Date.Added.to.Catalog <- as.Date(df$Date.Added.to.Catalog,"%m/%d/%Y")
 df$Date <- as.Date(df$Date,"%m/%d/%Y")
 df$Journal <- factor(df$Journal)
 
+
+
+corder <- function(df,...) {
+  cols <-as.vector(eval(substitute((alist(...)))),mode="character")
+  stopifnot(is.data.frame(df))
+  df[,c(cols,unlist(setdiff(names(df),cols)))]
+}
 
 
 
@@ -40,20 +76,6 @@ extract_study_population <- function(col) {
   m
 }
 
-# Population Codes
-"
-ASW (A): African ancestry in Southwest USA
-CEU (C): Utah residents with Northern and Western European ancestry from the CEPH collection
-CHB (H): Han Chinese in Beijing, China
-CHD (D): Chinese in Metropolitan Denver, Colorado
-GIH (G): Gujarati Indians in Houston, Texas
-JPT (J): Japanese in Tokyo, Japan
-LWK (L): Luhya in Webuye, Kenya
-MEX (M): Mexican ancestry in Los Angeles, California
-MKK (K): Maasai in Kinyawa, Kenya
-TSI (T): Toscans in Italy
-YRI (Y): Yoruba in Ibadan, Nigeria (West Africa)
-"
 pop_recodes <- c(
   "African" = "African",
   "African American" = "African",
@@ -105,6 +127,7 @@ pop_recodes <- c(
   "Singaporean Malay" = NA
 )
 
+# Test
 study_populations <- extract_study_population("Initial.Sample.Size")
 study_populations$V2 <- as.factor(pop_recodes[study_populations$V2]) # Recodes Cases
 study_populations$V5 <- as.factor(pop_recodes[study_populations$V5]) # Recodes Controls
@@ -118,3 +141,41 @@ checkTrue(all(levels(study_populations$V5) %in% allowed_pops), "Error in Populat
 
 # Extract case/control information.
 df[ c("nCases","case_ancestry","is_case","nControl","control_ancestry","is_control")] <-extract_study_population("Initial.Sample.Size")
+
+# Population Codes
+"
+ASW (A): African ancestry in Southwest USA
+CEU (C): Utah residents with Northern and Western European ancestry from the CEPH collection
+CHB (H): Han Chinese in Beijing, China
+CHD (D): Chinese in Metropolitan Denver, Colorado
+GIH (G): Gujarati Indians in Houston, Texas
+JPT (J): Japanese in Tokyo, Japan
+LWK (L): Luhya in Webuye, Kenya
+MEX (M): Mexican ancestry in Los Angeles, California
+MKK (K): Maasai in Kinyawa, Kenya
+TSI (T): Toscans in Italy
+YRI (Y): Yoruba in Ibadan, Nigeria (West Africa)
+"
+
+# Add Hapmap Population Mapping. Not very great; but as close as it will probably get...
+hapmap_pop_matches <- c(African = "ASW", Chinese = "CHB", European = "CEU", Hispanic = "MEX", Indian = "GIH", Japanese = "JPT", Mexican = "MEX")
+
+###############################
+# Merge in Allele Frequencies #
+###############################
+
+
+
+
+#####################
+# Merge in EFO data #
+#####################
+efo = read.csv("EFO/GWAS-EFO-Mappings201302.csv")
+efo$efo_terms <- as.factor(ifelse(!grepl("Other *", efo$PARENT), as.character(efo$PARENT), as.character(efo$EFOTRAIT)))
+
+# Merge into original data frame
+dfm <- merge(df, efo, by = c("PUBMEDID"))
+
+# Generate frequency columns
+efo <- ddply(efo, .(efo_terms), mutate, freq.efo = length(efo_terms))
+

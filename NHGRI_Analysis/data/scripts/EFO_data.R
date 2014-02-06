@@ -15,12 +15,16 @@ GWAS_EFO$direct_parent <- factor(sapply(GWAS_EFO$EFOURI,failwith(NA,function(x) 
 
 GWAS_EFO <- arrange(GWAS_EFO,direct_parent)
 
-
 corder <- function(df,...) {
   cols <-as.vector(eval(substitute((alist(...)))),mode="character")
   stopifnot(is.data.frame(df))
   df[,c(cols,unlist(setdiff(names(df),cols)))]
 }
+
+# Create an efo column for analsyis.
+GWAS_EFO$efo <- ifelse(!grepl("Other *", GWAS_EFO$PARENT), as.character(GWAS_EFO$PARENT), as.character(GWAS_EFO$EFOTRAIT))
+
+GWAS_EFO <- corder(GWAS_EFO,efo)
 
 "
 DISEASETRAIT
