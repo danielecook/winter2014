@@ -5,6 +5,7 @@ library(reshape2)
 library("annotate")
 library(RUnit)
 library(data.table)
+library("biomaRt")
 
 DIR = commandArgs(trailingOnly = TRUE)[2]
 if (is.na(DIR[1])) {
@@ -14,13 +15,20 @@ if (is.na(DIR[1])) {
   setwd(DIR)
 }
 
-# Load Data
-df = data.frame(read.table('gwascatalog.txt',header=TRUE,sep="\t",quote="",comment.char="",stringsAsFactors=TRUE))
-GO = data.frame(read.table('GO/GO_reshaped.txt',header=T,sep='\t',stringsAsFactors=T))
+# Load NHGRI Catalog
+df = data.frame(read.table('gwascatalog.txt',header=TRUE,sep="\t",quote="",comment.char="",stringsAsFactors=F, strip.white=T))
+df$rs <- df$SNPs
 
+
+GO = data.frame(read.table('GO/GO_reshaped.txt',header=T,sep='\t',stringsAsFactors=T, strip.white=T))
+
+
+#######################################
+# HMAF = HapMap Allele Frequency Data #
+#######################################
 
 # Hapmap Allele Frequency Data
-HMAF = data.frame(read.table('hapmap/hapmap_allele_freq_reshaped.txt',header=T,sep=",",stringsAsFactors=T)) 
+HMAF = data.frame(read.table('hapmap/hapmap_allele_freq_reshaped.txt',header=T,sep=",",stringsAsFactors=F, strip.white=T)) 
 
 # Clean up the hapmap allele frequency data.
 names(HMAF) <- gsub("\\.\\.","",gsub("\\.\\.\\.\\.","-",gsub("X..","",names(HMAF))))
@@ -42,7 +50,53 @@ HMAF <- condense_columns(HMAF,"pos","pos-")
 HMAF <- condense_columns(HMAF,"refallele","refallele-")
 HMAF <- condense_columns(HMAF,"otherallele","otherallele-")
 
+# Merge in HMAF data
+dfm <- merge(df,HMAF,by=c("rs"), all.x=T,all.y=F)
 
+df$risk_allele <- gsub(" ","",do.call(rbind,strsplit(df$Strongest.SNP.Risk.Allele,"-"))[,2])
+# Cleanup problems
+df$risk_allele[df$risk_allele=="?"] <- NA
+# Many difficult to interpret risk alleles remain (e.g. Cxrs12880735)
+df$risk_allele[!df$risk_allele %in% c("A","C","T","G")]  <- NA
+
+length(df$risk_allele[!is.na(df$risk_allele)]) # Number SNPs available.
+
+# Freqs of risk allele bases (tot = 11,168)
+#    A    C    G    T 
+# 3386 2357 2858 2567
+
+length(df$risk_allele[!is.na(df$risk_allele) & ((df$risk_allele != df$refallele) & (df$risk_allele != df$otherallele))])
+length(df$risk_allele[!is.na(df$risk_allele) & ((df$risk_allele == df$refallele) | (df$risk_allele == df$otherallele))])
+
+
+
+# Fetch SNP info from biomart.
+"
+snpmart = useMart("snp", dataset = "hsapiens_snp")
+rs_info <- getBM(c("refsnp_id", "allele", "chrom_start", "chrom_strand"),
+                 filters = c("snp_filter"),
+                 values = list(df$rs), mart = snpmart)
+allele_set <- do.call('rbind', strsplit(as.character(rs_info$allele),'/',fixed=TRUE))
+
+# Parse out the first two alleles
+rs_info[c("a1","a2","a3")] <- allele_set[,1:3]
+rs_info$a3[rs_info$a1 == rs_info$a3] <- NA
+
+colnames(rs_info)[1] <- "rs"
+
+# Merge in SNP info
+df <- merge(df,rs_info,by="rs")
+"
+# Flip Risk Allele if it appears to be on the reverse (-) strand:
+df[!is.na(df$risk_allele) & (df$risk_allele != df$refallele &  df$risk_allele != df$otherallele),c("chrom_strand")] <- -1
+
+length(df[df$chrom_strand == -1,c("risk_allele")]) # 282 variants apparently labeled on reverse strand.
+comp_base = c(A="T",T="A",C="G",G="C")
+df$risk_allele[df$chrom_strand == -1] <- as.character(comp_base[df[df$chrom_strand == -1,c("risk_allele")]])
+
+
+# Check consistancy of risk and ref/other alleles
+sum(df$risk_allele == df$refallele | df$risk_allele == df$otherallele)
 
 # Date Conversions (ISO Standard)
 df$Date.Added.to.Catalog <- as.Date(df$Date.Added.to.Catalog,"%m/%d/%Y")
@@ -50,13 +104,18 @@ df$Date <- as.Date(df$Date,"%m/%d/%Y")
 df$Journal <- factor(df$Journal)
 
 
-
-corder <- function(df,...) {
+# R Helper Functions
+corder <- function(df, ...) {
   cols <-as.vector(eval(substitute((alist(...)))),mode="character")
   stopifnot(is.data.frame(df))
   df[,c(cols,unlist(setdiff(names(df),cols)))]
 }
 
+cdrop <- function(df, ...) {
+  cols <-as.vector(eval(substitute((alist(...)))),mode="character")
+  stopifnot(is.data.frame(df))
+  df[,c(unlist(setdiff(names(df),cols)))]
+}
 
 
 # Clean up Population Data ~ Would love to know if there is a better way to do this...
