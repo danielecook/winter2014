@@ -17,7 +17,8 @@ if (is.na(DIR[1])) {
 
 # Load NHGRI Catalog
 df = data.frame(read.table('gwascatalog.txt',header=TRUE,sep="\t",quote="",comment.char="",stringsAsFactors=F, strip.white=T))
-df$rs <- df$SNPs
+# Create a column for merging the *strongest* SNP allele.
+df$rs <- gsub("\\-.*$","",df$Strongest.SNP.Risk.Allele)
 
 
 GO = data.frame(read.table('GO/GO_reshaped.txt',header=T,sep='\t',stringsAsFactors=T, strip.white=T))
@@ -51,7 +52,10 @@ HMAF <- condense_columns(HMAF,"refallele","refallele-")
 HMAF <- condense_columns(HMAF,"otherallele","otherallele-")
 
 # Merge in HMAF data
-dfm <- merge(df,HMAF,by=c("rs"), all.x=T,all.y=F)
+df <- merge(df,HMAF,by=c("rs"), all.x=T,all.y=F)
+
+HMAF$rs[(!(HMAF$rs %in% df$rs))]
+
 
 df$risk_allele <- gsub(" ","",do.call(rbind,strsplit(df$Strongest.SNP.Risk.Allele,"-"))[,2])
 # Cleanup problems

@@ -16,8 +16,9 @@ pip install csvkit
 # gwascatalog.txt will be timestamped and saved - as the most recent version.
 wget --timestamping 'http://www.genome.gov/admin/gwascatalog.txt'
 
-# Generate unique, sorted rs (SNP) list.
-iconv -c -f utf-8 -t ascii  gwascatalog.txt | cut -f 22 | tr ',' '\n' | tr ':' '\n' | grep rs* | sort -k1 | uniq | awk '{$1=$1}{ print }'  > gwas_catalog_rs_list.txt
+# Generate list of *strongest* associated SNPs.
+iconv -c -f utf-8 -t ascii  gwascatalog.txt | cut -f 21 | egrep -o "rs[0-9]+" > gwas_catalog_rs_list.txt
+
 
 # Download MeSH Terms
 #====================#
@@ -81,7 +82,7 @@ rm kegg/*.tmp
 wget -nd -r  -A "allele*.gz" -e robots=off --directory-prefix hapmap "http://hapmap.ncbi.nlm.nih.gov/downloads/frequencies/2010-08_phaseII+III/"
 gunzip hapmap/*.gz # Unzip all the files
 ./hapmap/hapmap_create_sqlite.py # This generates an SQL file of the hapmap data.
-
+./hapmap/reshape_hapmap_data.py # Generates a reshaped file with the Hapmap data.
 
 
 # Because the catalog is frequently updated - create an archive of prior versions, in case
@@ -89,7 +90,7 @@ gunzip hapmap/*.gz # Unzip all the files
 GWAS_CKSUM=$(md5 -q gwascatalog.txt)
 TDATE=$(date +%m%d%Y)
 # Check if the file is different and save to the archive
-# with md5 hash (to uniquely identify) and todays date.
+# with md5 hash (to uni=quely identify) and todays date.
 if [ $(ls catalog_archive | grep "${GWAS_CKSUM:0:5}" | wc -l) == 0 ]; then
 	cp gwascatalog.txt "catalog_archive/${TDATE}.${GWAS_CKSUM:0:5}.gwas.catalog.txt"
 	echo "New GWAS Catalog saved to archive: ${TDATE}.${GWAS_CKSUM:0:5}.gwas.catalog.txt"
