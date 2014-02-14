@@ -6,6 +6,10 @@ library("annotate")
 library(RUnit)
 library(data.table)
 library(ggplot2)
+library(source.gist)
+
+source.gist('8809319')
+
 
 DIR = commandArgs(trailingOnly = TRUE)[2]
 if (is.na(DIR[1])) {
@@ -100,9 +104,14 @@ df$risk_allele_forward[df$chrom_strand == 1] <- as.character(df[df$chrom_strand 
 
 df <- corder(df,risk_allele_forward)
 
-# Generate cumulative ref. allele freq (for plotting purposes).
-df$total_allele_freq <- rowSums(df[,grep("refallele_count", names(df))],na.rm=T) / rowSums(df[,grep("totalcount",names(df))],na.rm=T)
 
+
+# Generate cumulative risk allele freq (for plotting purposes).
+df$risk_allele_count <- ifelse(df$risk_allele == df$refallele, rowSums(df[,grep("refallele_count", names(df))],na.rm=T), rowSums(df[,grep("otherallele_count", names(df))],na.rm=T))
+df$total_allele_count <- rowSums(df[,grep("totalcount",names(df))],na.rm=T)
+df$risk_allele_freq <- df$risk_allele_count / df$total_allele_count
+
+df <- corder(df, risk_allele_count,total_allele_count,risk_allele_freq)
 # Generate Risk allele frequency
 pops <- gsub('refallele_freq-','',names(df[,grep("refallele_freq",names(df))])) # Populations
 
@@ -113,13 +122,12 @@ for (p in pops) {
 # Clean up total allele frequency.
 df$total_allele_freq[is.nan(df$total_allele_freq)] <- NA
 
-df$
 
 # Plot Risk Allele Frequencies
-
-qplot(df$, data = diamonds, geom = "freqpoly", binwidth = 1000,
-      colour = color)
-
+ggplot(df, aes(x=df$risk_allele_freq, y=df$'JPT_risk_allele_freq')) +
+  geom_point(shape=1)      # Use hollow circles
+  
+  
 # Check consistancy of risk and ref/other alleles
 sum(df$risk_allele == df$refallele | df$risk_allele == df$otherallele)
 
