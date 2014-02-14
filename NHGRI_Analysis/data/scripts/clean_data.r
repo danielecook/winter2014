@@ -5,7 +5,7 @@ library(reshape2)
 library("annotate")
 library(RUnit)
 library(data.table)
-library("biomaRt")
+library(ggplot2)
 
 DIR = commandArgs(trailingOnly = TRUE)[2]
 if (is.na(DIR[1])) {
@@ -29,13 +29,10 @@ GO = data.frame(read.table('GO/GO_reshaped.txt',header=T,sep='\t',stringsAsFacto
 #######################################
 
 # Hapmap Allele Frequency Data
-HMAF = data.frame(read.table('hapmap/hapmap_allele_freq_reshaped.txt',header=T,sep=",",stringsAsFactors=F, strip.white=T)) 
+HMAF = data.frame(read.table('hapmap/hapmap_allele_freq_reshaped.csv',header=T,sep=",",stringsAsFactors=F, strip.white=T)) 
 
 # Clean up the hapmap allele frequency data.
 names(HMAF) <- gsub("\\.\\.","",gsub("\\.\\.\\.\\.","-",gsub("X..","",names(HMAF))))
-
-# Remove unnecessary columns
-HMAF <- HMAF[,-grep("id|chrom",colnames(HMAF))]
 
 condense_columns <- function(df,col_name, col_search) {
   df[[col_name]] <- NA
@@ -47,14 +44,20 @@ condense_columns <- function(df,col_name, col_search) {
   df
 }
 
-HMAF <- condense_columns(HMAF,"pos","pos-")
 HMAF <- condense_columns(HMAF,"refallele","refallele-")
 HMAF <- condense_columns(HMAF,"otherallele","otherallele-")
+
+
 
 # Merge in HMAF data
 df <- merge(df,HMAF,by=c("rs"), all.x=T,all.y=F)
 
+# Lists SNPs that are in Hapmap but not matching with dataframe
+# Now sure how/why these are here.
 HMAF$rs[(!(HMAF$rs %in% df$rs))]
+
+length(HMAF$rs[((HMAF$rs %in% df$rs))])
+
 
 
 df$risk_allele <- gsub(" ","",do.call(rbind,strsplit(df$Strongest.SNP.Risk.Allele,"-"))[,2])
@@ -65,39 +68,57 @@ df$risk_allele[!df$risk_allele %in% c("A","C","T","G")]  <- NA
 
 length(df$risk_allele[!is.na(df$risk_allele)]) # Number SNPs available.
 
+# Number of HMAF SNPs that successfully merged
+
+
 # Freqs of risk allele bases (tot = 11,168)
 #    A    C    G    T 
 # 3386 2357 2858 2567
 
-length(df$risk_allele[!is.na(df$risk_allele) & ((df$risk_allele != df$refallele) & (df$risk_allele != df$otherallele))])
-length(df$risk_allele[!is.na(df$risk_allele) & ((df$risk_allele == df$refallele) | (df$risk_allele == df$otherallele))])
+# Number of Forward Strand SNPs
+# Forward Strand variants
+length(df[complete.cases(df[,c("risk_allele","refallele")]) & ((df$risk_allele == df$refallele) | df$risk_allele == df$otherallele),1])
+# Reverse Strand variants
+length(df[complete.cases(df[,c("risk_allele","refallele")]) & ((df$risk_allele != df$refallele) & df$risk_allele != df$otherallele),1])
 
+# Create a chrom strand variable
+df$chrom_strand <- 0
 
+df <- corder(df,chrom_strand,risk_allele,refallele,otherallele)
 
-# Fetch SNP info from biomart.
-"
-snpmart = useMart("snp", dataset = "hsapiens_snp")
-rs_info <- getBM(c("refsnp_id", "allele", "chrom_start", "chrom_strand"),
-                 filters = c("snp_filter"),
-                 values = list(df$rs), mart = snpmart)
-allele_set <- do.call('rbind', strsplit(as.character(rs_info$allele),'/',fixed=TRUE))
-
-# Parse out the first two alleles
-rs_info[c("a1","a2","a3")] <- allele_set[,1:3]
-rs_info$a3[rs_info$a1 == rs_info$a3] <- NA
-
-colnames(rs_info)[1] <- "rs"
-
-# Merge in SNP info
-df <- merge(df,rs_info,by="rs")
-"
 # Flip Risk Allele if it appears to be on the reverse (-) strand:
-df[!is.na(df$risk_allele) & (df$risk_allele != df$refallele &  df$risk_allele != df$otherallele),c("chrom_strand")] <- -1
+df$chrom_strand[!is.na(df$risk_allele) & (df$risk_allele == df$refallele |  df$risk_allele == df$otherallele)] <- 1
+df$chrom_strand[!is.na(df$risk_allele) & (df$risk_allele != df$refallele &  df$risk_allele != df$otherallele)] <- -1 # Reverse
 
-length(df[df$chrom_strand == -1,c("risk_allele")]) # 282 variants apparently labeled on reverse strand.
+length(df$chrom_strand[df$chrom_strand == -1]) # 282 variants apparently labeled on reverse strand.
 comp_base = c(A="T",T="A",C="G",G="C")
-df$risk_allele[df$chrom_strand == -1] <- as.character(comp_base[df[df$chrom_strand == -1,c("risk_allele")]])
+# Create variable - risk_allele_corrected, to account for strand flip
+# Reverse Strand
+df$risk_allele_forward[df$chrom_strand == -1] <- as.character(comp_base[df[df$chrom_strand == -1,c("risk_allele")]])
+# Forward Strand
+df$risk_allele_forward[df$chrom_strand == 1] <- as.character(df[df$chrom_strand == 1,c("risk_allele")])
 
+df <- corder(df,risk_allele_forward)
+
+# Generate cumulative ref. allele freq (for plotting purposes).
+df$total_allele_freq <- rowSums(df[,grep("refallele_count", names(df))],na.rm=T) / rowSums(df[,grep("totalcount",names(df))],na.rm=T)
+
+# Generate Risk allele frequency
+pops <- gsub('refallele_freq-','',names(df[,grep("refallele_freq",names(df))])) # Populations
+
+for (p in pops) {
+  df[[paste0(p,"_risk_allele_freq")]] <- ifelse(df$risk_allele == df$refallele, df[[paste0('refallele_freq-',p)]],df[[paste0('otherallele_freq-',p)]])
+}
+
+# Clean up total allele frequency.
+df$total_allele_freq[is.nan(df$total_allele_freq)] <- NA
+
+df$
+
+# Plot Risk Allele Frequencies
+
+qplot(df$, data = diamonds, geom = "freqpoly", binwidth = 1000,
+      colour = color)
 
 # Check consistancy of risk and ref/other alleles
 sum(df$risk_allele == df$refallele | df$risk_allele == df$otherallele)
@@ -106,20 +127,6 @@ sum(df$risk_allele == df$refallele | df$risk_allele == df$otherallele)
 df$Date.Added.to.Catalog <- as.Date(df$Date.Added.to.Catalog,"%m/%d/%Y")
 df$Date <- as.Date(df$Date,"%m/%d/%Y")
 df$Journal <- factor(df$Journal)
-
-
-# R Helper Functions
-corder <- function(df, ...) {
-  cols <-as.vector(eval(substitute((alist(...)))),mode="character")
-  stopifnot(is.data.frame(df))
-  df[,c(cols,unlist(setdiff(names(df),cols)))]
-}
-
-cdrop <- function(df, ...) {
-  cols <-as.vector(eval(substitute((alist(...)))),mode="character")
-  stopifnot(is.data.frame(df))
-  df[,c(unlist(setdiff(names(df),cols)))]
-}
 
 
 # Clean up Population Data ~ Would love to know if there is a better way to do this...
@@ -236,8 +243,12 @@ hapmap_pop_matches <- c(African = "ASW", Chinese = "CHB", European = "CEU", Hisp
 efo = read.csv("EFO/GWAS-EFO-Mappings201302.csv")
 efo$efo_terms <- as.factor(ifelse(!grepl("Other *", efo$PARENT), as.character(efo$PARENT), as.character(efo$EFOTRAIT)))
 
+#rename disease trait.
+df$DISEASETRAIT <- df$Disease.Trait
+
 # Merge into original data frame
-dfm <- merge(df, efo, by = c("PUBMEDID"))
+dfm <- merge(df, efo, by = c("PUBMEDID","DISEASETRAIT"))
+dfq <- merge(df, efo, by = c("DISEASETRAIT"))
 
 # Generate frequency columns
 efo <- ddply(efo, .(efo_terms), mutate, freq.efo = length(efo_terms))
