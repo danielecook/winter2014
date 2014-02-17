@@ -2,11 +2,13 @@
 
 library(stringr)
 library(reshape2)
-library(annotate)
+library("annotate")
 library(RUnit)
+library(data.table)
 library(ggplot2)
-library(devtools)
-source_url('https://gist.github.com/danielecook/8809319/raw/')
+library(source.gist)
+
+source.gist('8809319')
 
 
 DIR = commandArgs(trailingOnly = TRUE)[2]
@@ -22,22 +24,13 @@ df = data.frame(read.table('gwascatalog.txt',header=TRUE,sep="\t",quote="",comme
 # Create a column for merging the *strongest* SNP allele.
 df$rs <- gsub("\\-.*$","",df$Strongest.SNP.Risk.Allele)
 
-# Convert Risk Allele Frequency to Numeric
-df$Risk.Allele.Frequency <- as.numeric(df$Risk.Allele.Frequency)
 
-#GO = data.frame(read.table('GO/GO_reshaped.txt',header=T,sep='\t',stringsAsFactors=T, strip.white=T))
+GO = data.frame(read.table('GO/GO_reshaped.txt',header=T,sep='\t',stringsAsFactors=T, strip.white=T))
 
 
- 
-
-
-#--------#
-# Hapmap #
-#--------#
-
-#
-# BASIC CLEANUP
-#
+#######################################
+# HMAF = HapMap Allele Frequency Data #
+#######################################
 
 # Hapmap Allele Frequency Data
 HMAF = data.frame(read.table('hapmap/hapmap_allele_freq_reshaped.csv',header=T,sep=",",stringsAsFactors=F, strip.white=T)) 
@@ -45,7 +38,6 @@ HMAF = data.frame(read.table('hapmap/hapmap_allele_freq_reshaped.csv',header=T,s
 # Clean up the hapmap allele frequency data.
 names(HMAF) <- gsub("\\.\\.","",gsub("\\.\\.\\.\\.","-",gsub("X..","",names(HMAF))))
 
-# Special function or cleaning up data
 condense_columns <- function(df,col_name, col_search) {
   df[[col_name]] <- NA
   for (p in colnames(df[,grep(col_search,names(df))])) {
@@ -59,6 +51,8 @@ condense_columns <- function(df,col_name, col_search) {
 HMAF <- condense_columns(HMAF,"refallele","refallele-")
 HMAF <- condense_columns(HMAF,"otherallele","otherallele-")
 
+
+
 # Merge in HMAF data
 df <- merge(df,HMAF,by=c("rs"), all.x=T,all.y=F)
 
@@ -68,40 +62,33 @@ HMAF$rs[(!(HMAF$rs %in% df$rs))]
 
 length(HMAF$rs[((HMAF$rs %in% df$rs))])
 
-#---------------------------------#
-# Parse out strongest risk allele #
-#---------------------------------#
+
 
 df$risk_allele <- gsub(" ","",do.call(rbind,strsplit(df$Strongest.SNP.Risk.Allele,"-"))[,2])
 # Cleanup problems
 df$risk_allele[df$risk_allele=="?"] <- NA
-
-# Many difficult to interpret risk alleles remain (e.g. Cxrs12880735), filter these out.
+# Many difficult to interpret risk alleles remain (e.g. Cxrs12880735)
 df$risk_allele[!df$risk_allele %in% c("A","C","T","G")]  <- NA
 
-# Number Risk Alleles from the NHGRI catalog available.
-length(df$risk_allele[!is.na(df$risk_allele)]) 
-# 11,168 - but we will only be able to match on a few of these.
+length(df$risk_allele[!is.na(df$risk_allele)]) # Number SNPs available.
 
-# Forward Strand
-length(subset(df$risk_allele,df$risk_allele == df$refallele))
-# Reverse Strand
-length(subset(df$risk_allele,df$risk_allele == df$otherallele))
-# Neither = 282
-length(subset(df$risk_allele,df$risk_allele != df$refallele & df$risk_allele != df$otherallele))
+# Number of HMAF SNPs that successfully merged
 
-# Generate Risk allele frequency
-pops <- gsub('refallele_freq-','',names(df[,grep("refallele_freq",names(df))])) # Populations
 
-for (p in pops) {
-  df[[paste0(p,"_risk_allele_freq")]] <- ifelse(df$risk_allele == df$refallele, df[[paste0('refallele_freq-',p)]],df[[paste0('otherallele_freq-',p)]])
-}
+# Freqs of risk allele bases (tot = 11,168)
+#    A    C    G    T 
+# 3386 2357 2858 2567
 
-#-------------------------------#
-# Deal with NHGRI Strand Issues #
-#-------------------------------#
+# Number of Forward Strand SNPs
+# Forward Strand variants
+length(df[complete.cases(df[,c("risk_allele","refallele")]) & ((df$risk_allele == df$refallele) | df$risk_allele == df$otherallele),1])
+# Reverse Strand variants
+length(df[complete.cases(df[,c("risk_allele","refallele")]) & ((df$risk_allele != df$refallele) & df$risk_allele != df$otherallele),1])
 
+# Create a chrom strand variable
 df$chrom_strand <- 0
+
+df <- corder(df,chrom_strand,risk_allele,refallele,otherallele)
 
 # Flip Risk Allele if it appears to be on the reverse (-) strand:
 df$chrom_strand[!is.na(df$risk_allele) & (df$risk_allele == df$refallele |  df$risk_allele == df$otherallele)] <- 1
@@ -117,45 +104,32 @@ df$risk_allele_forward[df$chrom_strand == 1] <- as.character(df[df$chrom_strand 
 
 df <- corder(df,risk_allele_forward)
 
-#-------------------------#
-# Hapmap Allele Frequency #
-#-------------------------#
 
-draw_plot <- function(title) {
-  p <- qplot(df, x=df$hm_risk_allele_freq, y=df$Risk.Allele.Frequency, main=title, ylim = c(0,1), xlab="HapMap Computed Risk Allele Frequencies", ylab="NHGRI Reported Risk Allele Frequencies", color=factor(df$chrom_strand, exclude=0)) 
-  p <- p + scale_color_manual(name="Predicted Strand",values=c("#0080ff","#cccccc")) + opts(panel.background = theme_rect(fill='white', colour='black'))
-  p 
+
+# Generate cumulative risk allele freq (for plotting purposes).
+df$risk_allele_count <- ifelse(df$risk_allele == df$refallele, rowSums(df[,grep("refallele_count", names(df))],na.rm=T), rowSums(df[,grep("otherallele_count", names(df))],na.rm=T))
+df$total_allele_count <- rowSums(df[,grep("totalcount",names(df))],na.rm=T)
+df$risk_allele_freq <- df$risk_allele_count / df$total_allele_count
+
+df <- corder(df, risk_allele_count,total_allele_count,risk_allele_freq)
+# Generate Risk allele frequency
+pops <- gsub('refallele_freq-','',names(df[,grep("refallele_freq",names(df))])) # Populations
+
+for (p in pops) {
+  df[[paste0(p,"_risk_allele_freq")]] <- ifelse(df$risk_allele == df$refallele, df[[paste0('refallele_freq-',p)]],df[[paste0('otherallele_freq-',p)]])
 }
 
-#--------------------------------------------------------------------------------------------#
-# Examine NHGRI reported allele freq. vs. Hapmap allele freq. (Before and after strand flip) #
-#--------------------------------------------------------------------------------------------#
+# Clean up total allele frequency.
+df$total_allele_freq[is.nan(df$total_allele_freq)] <- NA
 
-# Generate Hapmap risk allele freq (for plotting purposes).
-df$hm_risk_allele_count <- ifelse(df$risk_allele == df$refallele, rowSums(df[,grep("refallele_count", names(df))],na.rm=T), rowSums(df[,grep("otherallele_count", names(df))],na.rm=T))
-df$hm_total_allele_count <- rowSums(df[,grep("totalcount",names(df))],na.rm=T)
-df$hm_risk_allele_freq <- df$hm_risk_allele_count / df$hm_total_allele_count
 
-# Plot flipped obs.
-draw_plot("Before Flip")
-ggsave(filename='../analysis/risk_allele_freq/allele_freq_comparison_before_flip.png', plot=last_plot(), width = 10, dpi = 150)
-
-# Generate Hapmap risk allele freq (for plotting purposes) ~ Corrected!.
-df$hm_risk_allele_count <- ifelse(df$risk_allele_forward == df$refallele, rowSums(df[,grep("refallele_count", names(df))],na.rm=T), rowSums(df[,grep("otherallele_count", names(df))],na.rm=T))
-df$hm_total_allele_count <- rowSums(df[,grep("totalcount",names(df))],na.rm=T)
-df$hm_risk_allele_freq <- df$hm_risk_allele_count / df$hm_total_allele_count
-
-# Plot flipped obs.
-draw_plot("After Flip")
-ggsave(filename='../analysis/risk_allele_freq/allele_freq_comparison_after_flip.png', plot=last_plot(), width = 10, dpi = 150)
-
+# Plot Risk Allele Frequencies
+ggplot(df, aes(x=df$risk_allele_freq, y=df$'JPT_risk_allele_freq')) +
+  geom_point(shape=1)      # Use hollow circles
+  
+  
 # Check consistancy of risk and ref/other alleles
-sum(df$risk_allele_forward == df$refallele | df$risk_allele == df$otherallele)
-
-#--------------------------------------#
-# Mark studies with large divergences. #
-#--------------------------------------#
-
+sum(df$risk_allele == df$refallele | df$risk_allele == df$otherallele)
 
 # Date Conversions (ISO Standard)
 df$Date.Added.to.Catalog <- as.Date(df$Date.Added.to.Catalog,"%m/%d/%Y")
