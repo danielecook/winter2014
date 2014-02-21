@@ -1,0 +1,19 @@
+
+VCFtools - v0.1.11
+(C) Adam Auton 2009
+
+Parameters as interpreted:
+	--vcf 1kg/ALL.wgs.phase1_release_v3.20101123.snps_indels_sv.sites.vcf
+	--recode-INFO-all
+	--out 1kg/nhgri_1kg
+	--recode
+	--snps gwas_catalog_rs_list.txt
+
+Reading Index file.
+File contains 39706715 entries and 0 individuals.
+Applying Required Filters.
+Keeping sites by user-supplied list
+After filtering, kept 0 out of 0 Individuals
+After filtering, kept 11672 out of a possible 39706715 Sites
+Outputting VCF file... Done
+Run Time = 422.00 seconds

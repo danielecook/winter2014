@@ -40,3 +40,14 @@ is mostly focusing on integrating all the data rather than acquisition and base 
 
 # Week 4 (1/26/14)
 
+* [ X ] Learning R.
+
+# Week 5 (2/2/14)
+
+* [ X ] EFO trait data successfully imported.
+
+# Week 6 (2/9/14)
+
+* [ X ] Hapmap strand issues have been resolved.
+
+

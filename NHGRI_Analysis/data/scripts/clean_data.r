@@ -27,7 +27,6 @@ df$Risk.Allele.Frequency <- as.numeric(df$Risk.Allele.Frequency)
 
 #GO = data.frame(read.table('GO/GO_reshaped.txt',header=T,sep='\t',stringsAsFactors=T, strip.white=T))
 
-
 #---------------#
 # Basic Cleanup #
 #---------------#
@@ -36,8 +35,6 @@ df$Risk.Allele.Frequency <- as.numeric(df$Risk.Allele.Frequency)
 df$Date.Added.to.Catalog <- as.Date(df$Date.Added.to.Catalog,"%m/%d/%Y")
 df$Date <- as.Date(df$Date,"%m/%d/%Y")
 df$Journal <- factor(df$Journal)
-
-
 
 #--------#
 # Hapmap #
@@ -98,13 +95,6 @@ length(subset(df$risk_allele,df$risk_allele == df$otherallele))
 # Neither = 282
 length(subset(df$risk_allele,df$risk_allele != df$refallele & df$risk_allele != df$otherallele))
 
-# Generate Risk allele frequency
-pops <- gsub('refallele_freq-','',names(df[,grep("refallele_freq",names(df))])) # Populations
-
-for (p in pops) {
-  df[[paste0(p,"_risk_allele_freq")]] <- ifelse(df$risk_allele == df$refallele, df[[paste0('refallele_freq-',p)]],df[[paste0('otherallele_freq-',p)]])
-}
-
 #-------------------------------#
 # Deal with NHGRI Strand Issues #
 #-------------------------------#
@@ -125,6 +115,22 @@ df$risk_allele_forward[df$chrom_strand == 1] <- as.character(df[df$chrom_strand 
 
 df <- corder(df,risk_allele_forward)
 
+#-------------------------------------------------#
+# Generate per population risk allele frequencies #
+#-------------------------------------------------#
+
+# Generate Risk allele frequency
+pops <- gsub('refallele_freq-','',names(df[,grep("refallele_freq",names(df))])) # Populations
+
+for (p in pops) {
+  df[[paste0(p,"_risk_allele_freq")]] <- ifelse(df$risk_allele_forward == df$refallele, df[[paste0('refallele_freq-',p)]],df[[paste0('otherallele_freq-',p)]])
+}
+
+
+#----------------------#
+# 1kg allele frequency #
+#----------------------#
+
 #-------------------------#
 # Hapmap Allele Frequency #
 #-------------------------#
@@ -133,7 +139,6 @@ draw_plot <- function(title, cfactor='chrom_strand') {
   p <- qplot(df, x=df$hm_risk_allele_freq, y=df$Risk.Allele.Frequency, main=title, ylim = c(0,1), xlab="HapMap Computed Risk Allele Frequencies", ylab="NHGRI Reported Risk Allele Frequencies", color=factor(df[[cfactor]], exclude=0)) 
   p <- p + scale_color_manual(name="Predicted Strand",values=c("#0080ff","#cccccc")) + opts(panel.background = theme_rect(fill='white', colour='black'))
   p 
-  
 }
 
 #--------------------------------------------------------------------------------------------#
@@ -158,9 +163,6 @@ df$hm_risk_allele_freq <- df$hm_risk_allele_count / df$hm_total_allele_count
 draw_plot("After Flip")
 ggsave(filename='../analysis/risk_allele_freq/allele_freq_comparison_after_flip.png', plot=last_plot(), width = 10, dpi = 150)
 
-# Check consistancy of risk and ref/other alleles
-sum(df$risk_allele_forward == df$refallele | df$risk_allele == df$otherallele)
-
 #--------------------------------------#
 # Mark studies with large divergences. #
 #--------------------------------------#
@@ -169,6 +171,16 @@ sum(df$risk_allele_forward == df$refallele | df$risk_allele == df$otherallele)
 df$risk_alleles_resids <- residuals(lm(df$Risk.Allele.Frequency ~ df$hm_risk_allele_freq, na.action=na.exclude))
 df$risk_allele_flag <- 1
 df$risk_allele_flag[!is.na(df$risk_alleles_resids) & abs(df$risk_alleles_resids) >0.3] <- 0.5
+
+x <- names(df[,(grep('risk_allele_freq',names(df)))])
+x <- x[1:length(x)-1]
+df$emptyFreqs <- rowSums(is.na(df[,x]))
+df$emptyFreqsFlag <- 0.5
+df$emptyFreqsFlag[df$emptyFreqs < 5 & df$emptyFreqs != 11 ] <- 1.0
+
+p <- qplot(df, x=df$hm_risk_allele_freq, y=df$Risk.Allele.Frequency, main="title", ylim = c(0,1), xlab="HapMap Computed Risk Allele Frequencies", ylab="NHGRI Reported Risk Allele Frequencies", color=factor(df$emptyFreqsFlag, exclude=11)) 
+p <- p + scale_color_manual(name="Predicted Strand",values=c("#0080ff","#cccccc"))  + opts(panel.background = theme_rect(fill='white', colour='black'))
+p 
 
 draw_plot("Residuals > 0.3", cfactor = "risk_allele_flag")
 ggsave(filename='../analysis/risk_allele_freq/allele_freq_resids.png', plot=last_plot(), width = 10, dpi = 150)
@@ -293,9 +305,9 @@ hapmap_pop_matches <- c(African = "ASW", Chinese = "CHB", European = "CEU", Hisp
 
 
 
-#####################
+#-------------------#
 # Merge in EFO data #
-#####################
+#-------------------#
 efo = read.csv("EFO/GWAS-EFO-Mappings201302.csv")
 efo$efo_terms <- as.factor(ifelse(!grepl("Other *", efo$PARENT), as.character(efo$PARENT), as.character(efo$EFOTRAIT)))
 
