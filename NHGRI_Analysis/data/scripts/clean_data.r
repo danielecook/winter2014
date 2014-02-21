@@ -99,6 +99,9 @@ length(subset(df$risk_allele,df$risk_allele != df$refallele & df$risk_allele != 
 # Deal with NHGRI Strand Issues #
 #-------------------------------#
 
+df$refallele <- df$ref_1kg
+df$otherallele <- df$oth_1kg
+
 df$chrom_strand <- 0
 
 # Flip Risk Allele if it appears to be on the reverse (-) strand:
@@ -131,15 +134,25 @@ for (p in pops) {
 # 1kg allele frequency #
 #----------------------#
 
+kg <- read.csv("~/Documents/git/winter2014/NHGRI_Analysis/data/1kg/1kg_formatted.txt")
+
+df <- merge(df,kg,by=c("rs"), all.x=T, all.y=F)
+
+# Flip allele frequencies to match risk alleles
+df$AF <- ifelse(df$ref_1kg == df$risk_allele_forward, 1-df$AF, df$AF)
+
+
 #-------------------------#
 # Hapmap Allele Frequency #
 #-------------------------#
 
-draw_plot <- function(title, cfactor='chrom_strand') {
-  p <- qplot(df, x=df$hm_risk_allele_freq, y=df$Risk.Allele.Frequency, main=title, ylim = c(0,1), xlab="HapMap Computed Risk Allele Frequencies", ylab="NHGRI Reported Risk Allele Frequencies", color=factor(df[[cfactor]], exclude=0)) 
-  p <- p + scale_color_manual(name="Predicted Strand",values=c("#0080ff","#cccccc")) + opts(panel.background = theme_rect(fill='white', colour='black'))
+draw_plot <- function(title, var1 = 'hm_risk_allele_freq', var2 = 'Risk.Allele.Frequency', cfactor='chrom_strand') {
+  p <- qplot(df, x=df[[var1]], y=df[[var2]], main=title, ylim = c(0,1), xlab="HapMap Computed Risk Allele Frequencies", ylab="NHGRI Reported Risk Allele Frequencies", color=factor(df[[cfactor]], exclude=0)) 
+  p <- p + scale_color_manual(name="Predicted Strand",values=c("#0080ff","#cccccc")) + theme(panel.background = element_rect(fill='white', colour='black'))
   p 
 }
+
+draw_plot('title',var1='AF')
 
 #--------------------------------------------------------------------------------------------#
 # Examine NHGRI reported allele freq. vs. Hapmap allele freq. (Before and after strand flip) #
