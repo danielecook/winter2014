@@ -4,6 +4,7 @@ library(stringr)
 library(reshape2)
 library(annotate)
 library(RUnit)
+library(plyr)
 library(ggplot2)
 library(devtools)
 source_url('https://gist.github.com/danielecook/8809319/raw/')
@@ -73,6 +74,7 @@ HMAF$rs[(!(HMAF$rs %in% df$rs))]
 
 length(HMAF$rs[((HMAF$rs %in% df$rs))])
 
+
 #---------------------------------#
 # Parse out strongest risk allele #
 #---------------------------------#
@@ -95,6 +97,24 @@ length(subset(df$risk_allele,df$risk_allele == df$otherallele))
 # Neither = 282
 length(subset(df$risk_allele,df$risk_allele != df$refallele & df$risk_allele != df$otherallele))
 
+#-----------------------------------#
+# Generate Hapmap risk allele freqs #
+#-----------------------------------#
+
+# Generate Hapmap risk allele freq (for plotting purposes).
+df$hm_risk_allele_count <- ifelse(df$risk_allele == df$refallele, rowSums(df[,grep("refallele_count", names(df))],na.rm=T), rowSums(df[,grep("otherallele_count", names(df))],na.rm=T))
+df$hm_total_allele_count <- rowSums(df[,grep("totalcount",names(df))],na.rm=T)
+df$hm_risk_allele_freq <- df$hm_risk_allele_count / df$hm_total_allele_count
+
+
+#---------------------------#
+# Load 1kg allele frequency #
+#---------------------------#
+
+kg <- read.csv("~/Documents/git/winter2014/NHGRI_Analysis/data/1kg/1kg_formatted.txt")
+
+df <- merge(df,kg,by=c("rs"), all.x=T, all.y=F)
+
 #-------------------------------#
 # Deal with NHGRI Strand Issues #
 #-------------------------------#
@@ -116,7 +136,26 @@ df$risk_allele_forward[df$chrom_strand == -1] <- as.character(comp_base[df[df$ch
 # Forward Strand
 df$risk_allele_forward[df$chrom_strand == 1] <- as.character(df[df$chrom_strand == 1,c("risk_allele")])
 
-df <- corder(df,risk_allele_forward)
+#--------------------------------#
+# Plot 1000 g allele frequencies #
+#--------------------------------#
+
+# Flip allele frequencies to match risk alleles
+df$AF <- ifelse(df$ref_1kg == df$risk_allele_forward, 1-df$AF, df$AF)
+
+# Plot NHGRI vs. 1000 genomes
+
+p <- qplot(df, x=df$AF, y=df$Risk.Allele.Frequency, main="1000 Genomes vs. NHGRI Risk Allele Freq", ylim = c(0,1), xlab="1000 Genomes Allele Frequency", ylab="NHGRI Reported Risk Allele Frequencies") 
+p <- p + scale_color_manual(name="Predicted Strand",values=c("#0080ff","#cccccc")) + theme(panel.background = element_rect(fill='white', colour='black'))
+p
+
+# Plot Hapmap vs. 1000 genomes
+p <- qplot(dfm, x=df$AF, y=df$hm_risk_allele_freq, main="1000 Genomes vs. NHGRI Risk Allele Freq", ylim = c(0,1), xlab="1000 Genomes Allele Frequency", ylab="NHGRI Reported Risk Allele Frequencies") 
+p <- p + scale_color_manual(name="Predicted Strand",values=c("#0080ff","#cccccc")) + theme(panel.background = element_rect(fill='white', colour='black'))
+p
+
+# Count number of complete cases.
+sum(complete.cases(df[,c('AF','Risk.Allele.Frequency')]))
 
 #-------------------------------------------------#
 # Generate per population risk allele frequencies #
@@ -130,18 +169,6 @@ for (p in pops) {
 }
 
 
-#----------------------#
-# 1kg allele frequency #
-#----------------------#
-
-kg <- read.csv("~/Documents/git/winter2014/NHGRI_Analysis/data/1kg/1kg_formatted.txt")
-
-df <- merge(df,kg,by=c("rs"), all.x=T, all.y=F)
-
-# Flip allele frequencies to match risk alleles
-df$AF <- ifelse(df$ref_1kg == df$risk_allele_forward, 1-df$AF, df$AF)
-
-
 #-------------------------#
 # Hapmap Allele Frequency #
 #-------------------------#
@@ -153,24 +180,15 @@ draw_plot <- function(title, var1 = 'hm_risk_allele_freq', var2 = 'Risk.Allele.F
 }
 
 draw_plot('title',var1='AF')
-
 #--------------------------------------------------------------------------------------------#
 # Examine NHGRI reported allele freq. vs. Hapmap allele freq. (Before and after strand flip) #
 #--------------------------------------------------------------------------------------------#
 
-# Generate Hapmap risk allele freq (for plotting purposes).
-df$hm_risk_allele_count <- ifelse(df$risk_allele == df$refallele, rowSums(df[,grep("refallele_count", names(df))],na.rm=T), rowSums(df[,grep("otherallele_count", names(df))],na.rm=T))
-df$hm_total_allele_count <- rowSums(df[,grep("totalcount",names(df))],na.rm=T)
-df$hm_risk_allele_freq <- df$hm_risk_allele_count / df$hm_total_allele_count
 
 # Plot flipped obs.
 draw_plot("Before Flip")
 ggsave(filename='../analysis/risk_allele_freq/allele_freq_comparison_before_flip.png', plot=last_plot(), width = 10, dpi = 150)
 
-# Generate Hapmap risk allele freq (for plotting purposes) ~ Corrected!.
-df$hm_risk_allele_count <- ifelse(df$risk_allele_forward == df$refallele, rowSums(df[,grep("refallele_count", names(df))],na.rm=T), rowSums(df[,grep("otherallele_count", names(df))],na.rm=T))
-df$hm_total_allele_count <- rowSums(df[,grep("totalcount",names(df))],na.rm=T)
-df$hm_risk_allele_freq <- df$hm_risk_allele_count / df$hm_total_allele_count
 
 # Plot flipped obs.
 draw_plot("After Flip")
@@ -181,7 +199,7 @@ ggsave(filename='../analysis/risk_allele_freq/allele_freq_comparison_after_flip.
 #--------------------------------------#
 
 # Identify hapmap allele freq and reported allele freq discrepancies and flag.qplo
-df$risk_alleles_resids <- residuals(lm(df$Risk.Allele.Frequency ~ df$hm_risk_allele_freq, na.action=na.exclude))
+df$risk_alleles_resids <- residuals(lm(df$Risk.Allele.Frequency ~ df$AF, na.action=na.exclude))
 df$risk_allele_flag <- 1
 df$risk_allele_flag[!is.na(df$risk_alleles_resids) & abs(df$risk_alleles_resids) >0.3] <- 0.5
 
@@ -205,6 +223,7 @@ ggsave(filename='../analysis/risk_allele_freq/allele_freq_resids.png', plot=last
 
 save(df ,file="hapmap/hapmap_data.Rda")
 
+save(df ,file="df.Rda")
 
 
 
@@ -311,26 +330,5 @@ YRI (Y): Yoruba in Ibadan, Nigeria (West Africa)
 # Add Hapmap Population Mapping. Not very great; but as close as it will probably get...
 hapmap_pop_matches <- c(African = "ASW", Chinese = "CHB", European = "CEU", Hispanic = "MEX", Indian = "GIH", Japanese = "JPT", Mexican = "MEX")
 
-###############################
-# Merge in Allele Frequencies #
-###############################
 
-
-
-
-#-------------------#
-# Merge in EFO data #
-#-------------------#
-efo = read.csv("EFO/GWAS-EFO-Mappings201302.csv")
-efo$efo_terms <- as.factor(ifelse(!grepl("Other *", efo$PARENT), as.character(efo$PARENT), as.character(efo$EFOTRAIT)))
-
-#rename disease trait.
-df$DISEASETRAIT <- df$Disease.Trait
-
-# Merge into original data frame
-dfm <- merge(df, efo, by = c("PUBMEDID","DISEASETRAIT"))
-dfq <- merge(df, efo, by = c("DISEASETRAIT"))
-
-# Generate frequency columns
-efo <- ddply(efo, .(efo_terms), mutate, freq.efo = length(efo_terms))
 
