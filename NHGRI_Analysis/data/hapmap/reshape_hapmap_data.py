@@ -27,6 +27,7 @@ o = file('hapmap_allele_freq.txt','wr')
 o.write ('\t'.join([c.name for c in freq.columns]) + '\n')
 
 for line in f.readlines():
+	print line
 	row_set = {}
 	s = select([freq]).where(freq.c.rs == "%s" % (line.replace('\n','')))
 	for row in conn.execute(s):
