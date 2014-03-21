@@ -63,9 +63,6 @@ for (i in unique(dfm$PARENT)) {
 
 manhattan(subset(dfmanhattan,dfmanhattan$PARENT == "Cancer"))
 
-#----------------------------------#
-# Hypergeometric Tests - Kegg      #
-#----------------------------------#
-
-# Import Kegg Data
-
+#------------------------------------#
+# Examine Disease Risk by Population #
+#------------------------------------#

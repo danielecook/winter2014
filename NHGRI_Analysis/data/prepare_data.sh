@@ -76,11 +76,11 @@ gunzip -f kegg/*.txt.gz
 
 # Using super sed (ssed; install using 'brew install ssed')
 # Format and join pathways with their description.
-cut -f 3 kegg/knownToKeggEntrez.txt | ssed -e "s/+/\t/g" | sort -k 1 | join -1 1  -2 1  -t $'\t' - 'kegg/keggMapDesc.txt' | uniq | cat <(echo -e "kegg\tGene_ID\tpathway_desc") -  > kegg/entrez_kegg.tmp
+cut -f 3 kegg/knownToKeggEntrez.txt | ssed -e "s/+/\t/g" | sort -k 1 | join -1 1  -2 1  -t $'\t' - 'kegg/keggMapDesc.txt' | uniq | cat <(echo -e "kegg\tGene_ID\tpathway_desc") -  > kegg/entrez_kegg.txt
 
 ./kegg/format.py
 
-rm kegg/*.tmp
+
 
 #----------------------------------------------#
 # Hapmap (downloaded from UCSC Genome Browser) #

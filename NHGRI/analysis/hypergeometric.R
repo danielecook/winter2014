@@ -1,74 +1,16 @@
-library(xlsx)
 library(stringr)
 library(gplots)
 
-#-----------#
-# Functions #
-#-----------#
-
-SetMembers <- function(x) {
-  # Returns all unique members of a list and flattens it.
-  as.numeric(unique(unlist(x)))
-}
-
-FilterEmpty <- function(l) {
-  # Removes empty vectors within a list.
-  l[lapply(l,length)>0]
-} 
-
-
-pairwise_analysis <- function(comp_set,urn_set) {
-  # """ Performs pairwise hypergeometric test on two lists """
-  # Generate complete, intersecting set
-  i_set <- intersect(SetMembers(comp_set), SetMembers(urn_set))
-  
-  # Filter each set, retaining only elements in common.
-  comp_set <- FilterEmpty(lapply(comp_set, function(c) c[c %in% i_set]))
-  urn_set <- FilterEmpty(lapply(urn_set, function(c) c[c %in% i_set]))
-  
-  # (q) - Pairwise intersection matrix (# intersecting)!
-  q <- lapply(comp_set, function(c1) {
-    lapply(urn_set, function(c2) length(intersect(c1, c2)))
-  })
-  
-  # (m) - Number of white balls in the urn.
-  m <- lapply(comp_set, length)
-  
-  # (n) - Number of black balls in the urn.
-  n <- lapply(m, function(x) length(i_set) - x) 
-  
-  # (k) - Number of balls drawn from the urn.
-  k <- lapply(urn_set, length)
-  
-  # Perform the hypergeometric test!
-  results <- sapply(names(comp_set), USE.NAMES=T, function(c1) {
-    sapply(names(urn_set), USE.NAMES=T, function(c2) {
-      
-      phyper(q = q[[c1]][[c2]],
-             m = m[[c1]],
-             n = n[[c1]],
-             k = k[[c2]],
-             lower.tail = F,
-             log.p = T
-      )
-    })
-  })
-  # Replace -Inf results with a max.
-  results[results == - Inf] <- min(results[results != - Inf])
-  # Return the resutls
-  results
-}
+# Load Functions
+source("scripts/functions.R")
 
 #-------------------#
 # Load Initial Data #
 #-------------------#
 
 # Load data sets
-gwascatalog <- read.delim("gwascatalog.txt")
-efo <- read.xlsx("GWAS-EFO-Mappings201306.xlsx",1)
-
-# Repair names
-names(efo) <- str_replace(names(efo),"\\.","")
+gwascatalog <- read.delim("data/gwascatalog.txt")
+efo <- read.csv("data/EFO/GWAS-EFO-Mappings201306.csv")
 
 # Generate pubmed+disease key in efo and gwascatalog datasets
 efo$pubdis <- paste(efo$DISEASETRAIT,efo$PUBMEDID,sep=" %_% ")
@@ -77,7 +19,6 @@ gwascatalog$pubdis <- paste(gwascatalog$Disease.Trait,gwascatalog$PUBMEDID,sep="
 # Generate split of pubdis by trait
 efo_trait <- split(efo$pubdis, efo$EFOTRAIT)
 pub_gene <- split(gwascatalog$Snp_gene_ids, gwascatalog$pubdis)
-
 
 lookup_genes <- function(efo_trait) {
   r <- as.numeric(unique(as.character(unlist(pub_gene[unlist(efo_trait)]))))
@@ -106,7 +47,7 @@ names(kegg) <- kegg_names[names(kegg)]
 keggr <- pairwise_analysis(kegg,trait_disease)
 
 # Plot heatmaps
-pdf(file = "kegg.pdf", width=20, height = 15, pointsize=10)
+pdf(file = "analysis/kegg/kegg_ALL.pdf", width=20, height = 15, pointsize=10)
 heatmap.2(keggr,  margins=c(16,16), col=terrain.colors(100), xlab="Kegg Pathway", ylab="EFO Term", trace=c("none"))
 dev.off()
 
@@ -116,7 +57,7 @@ efo_parent <- split(efo$EFOTRAIT,efo$PARENT)
 # Filter efo terms by parent, and plot subsetted heatmaps
 for(parent in names(efo_parent)) {
   t <- keggr[intersect(as.character(unlist(efo_parent[parent],use.names=F)),rownames(keggr)),]
-  pdf(file = sprintf("kegg_%s.pdf",parent), width=20, height = 15, pointsize=10)
+  pdf(file = sprintf("analysis/kegg/kegg_%s.pdf",parent), width=20, height = 15, pointsize=10)
   heatmap.2(t,  margins=c(16,16), col=terrain.colors(100), title=sprintf("Kegg x EFO Parent (%s)",parent), xlab="Kegg Pathway", ylab="EFO Term", trace=c("none"))
   dev.off()
 }

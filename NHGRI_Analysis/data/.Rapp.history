@@ -1,0 +1,149 @@
+source("/Users/daniel/Dropbox/Online_Education/Computing_for_Data_Analysis/Programming Assignments/Assignment 4/a4.R")
+x <- '5'#
+x
+source("/Users/daniel/Dropbox/Online_Education/Computing_for_Data_Analysis/Programming Assignments/Assignment 4/a4.R")
+git help log
+load(file="hapmap/hapmap_data.Rda")
+for (i in unique(dfm$PARENT)) {#
+  png(sprintf('../analysis/risk_allele_freq/manhattan_%s.png',i), width=700)#
+  manhattan(subset(dfmanhattan,dfmanhattan$PARENT == i),main=i)#
+  dev.off()#
+  #ggsave(filename=sprintf('../analysis/risk_allele_freq/manhattan_%s.png',i), plot=p, width = 10, dpi = 150)#
+}
+source("/Users/daniel/Documents/git/winter2014/NHGRI_Analysis/data/scripts/hypergeometric_analysis.R")
+library(ggplot2)#
+library(reshape2)#
+DIR = commandArgs(trailingOnly = TRUE)[2]#
+if (is.na(DIR[1])) {#
+  user <- Sys.info()[["user"]]#
+  setwd(sprintf("/Users/%s/Documents/git/winter2014/NHGRI_Analysis/data/",user))#
+} else {#
+  setwd(DIR)#
+}
+load(file="hapmap/hapmap_data.Rda")
+load(file="hapmap/hapmap_data.Rda")
+ls()
+excel(df)
+library(stringr)#
+library(reshape2)#
+library(annotate)#
+library(RUnit)#
+library(plyr)#
+library(ggplot2)#
+library(devtools)
+library(stringr)#
+library(reshape2)#
+library(annotate)#
+library(RUnit)#
+library(plyr)#
+library(ggplot2)#
+library(devtools)
+library(stringr)#
+library(reshape2)#
+library(annotate)#
+library(RUnit)#
+library(plyr)#
+library(ggplot2)#
+library(devtools)
+DIR = commandArgs(trailingOnly = TRUE)[2]#
+if (is.na(DIR[1])) {#
+  user <- Sys.info()[["user"]]#
+  setwd(sprintf("/Users/%s/Documents/git/winter2014/NHGRI_Analysis/data/",user))#
+} else {#
+  setwd(DIR)#
+}
+DIR = commandArgs(trailingOnly = TRUE)[2]#
+if (is.na(DIR[1])) {#
+  user <- Sys.info()[["user"]]#
+  setwd(sprintf("/Users/%s/Documents/git/winter2014/NHGRI_Analysis/data/",user))#
+} else {#
+  setwd(DIR)#
+}
+df = data.frame(read.table('gwascatalog.txt',header=TRUE,sep="\t",quote="",comment.char="",stringsAsFactors=F, strip.white=T))
+df$rs <- gsub("\\-.*$","",df$Strongest.SNP.Risk.Allele)#
+#
+# Convert Risk Allele Frequency to Numeric#
+df$Risk.Allele.Frequency <- as.numeric(df$Risk.Allele.Frequency)#
+#
+#GO = data.frame(read.table('GO/GO_reshaped.txt',header=T,sep='\t',stringsAsFactors=T, strip.white=T))#
+#
+#---------------##
+# Basic Cleanup ##
+#---------------##
+#
+# Date Conversions (ISO Standard)#
+df$Date.Added.to.Catalog <- as.Date(df$Date.Added.to.Catalog,"%m/%d/%Y")#
+df$Date <- as.Date(df$Date,"%m/%d/%Y")#
+df$Journal <- factor(df$Journal)#
+#
+#--------##
+# Hapmap ##
+#--------##
+#
+##
+# BASIC CLEANUP#
+##
+#
+# Hapmap Allele Frequency Data#
+HMAF = data.frame(read.table('hapmap/hapmap_allele_freq_reshaped.csv',header=T,sep=",",stringsAsFactors=F, strip.white=T)) #
+#
+# Clean up the hapmap allele frequency data.#
+names(HMAF) <- gsub("\\.\\.","",gsub("\\.\\.\\.\\.","-",gsub("X..","",names(HMAF))))#
+#
+# Special function or cleaning up data#
+condense_columns <- function(df,col_name, col_search) {#
+  df[[col_name]] <- NA#
+  for (p in colnames(df[,grep(col_search,names(df))])) {#
+    s <- is.na(df[[col_name]]) & (df[[p]] != "" & !is.na(df[[p]]))#
+    df[[col_name]][s] <-  as.character(df[[p]][s])#
+  }#
+  df <- df[,-grep(sub("-","\\\\-",col_search),colnames(df))]#
+  df#
+}#
+#
+HMAF <- condense_columns(HMAF,"refallele","refallele-")#
+HMAF <- condense_columns(HMAF,"otherallele","otherallele-")#
+#
+# Merge in HMAF data#
+df <- merge(df,HMAF,by=c("rs"), all.x=T,all.y=F)#
+#
+# Lists SNPs that are in Hapmap but not matching with dataframe#
+# Now sure how/why these are here.#
+HMAF$rs[(!(HMAF$rs %in% df$rs))]#
+#
+length(HMAF$rs[((HMAF$rs %in% df$rs))])#
+#---------------------------------##
+# Parse out strongest risk allele ##
+#---------------------------------##
+#
+df$risk_allele <- gsub(" ","",do.call(rbind,strsplit(df$Strongest.SNP.Risk.Allele,"-"))[,2])#
+# Cleanup problems#
+df$risk_allele[df$risk_allele=="?"] <- NA#
+#
+# Many difficult to interpret risk alleles remain (e.g. Cxrs12880735), filter these out.#
+df$risk_allele[!df$risk_allele %in% c("A","C","T","G")]  <- NA#
+#
+# Number Risk Alleles from the NHGRI catalog available.#
+length(df$risk_allele[!is.na(df$risk_allele)]) #
+# 11,168 - but we will only be able to match on a few of these.#
+#
+# Forward Strand#
+length(subset(df$risk_allele,df$risk_allele == df$refallele))#
+# Reverse Strand#
+length(subset(df$risk_allele,df$risk_allele == df$otherallele))#
+# Neither = 282#
+length(subset(df$risk_allele,df$risk_allele != df$refallele & df$risk_allele != df$otherallele))
+df$AF <- ifelse(df$ref_1kg == df$risk_allele_forward, 1-df$AF, df$AF)#
+#
+# Plot NHGRI vs. 1000 genomes#
+#
+p <- qp
+p <- qplot(df, x=df$AF, y=df$Risk.Allele.Frequency, main="1000 Genomes vs. NHGRI Risk Allele Freq", ylim = c(0,1), xlab="1000 Genomes Allele Frequency", ylab="NHGRI Reported Risk Allele Frequencies") #
+p <- p + scale_color_manual(name="Predicted Strand",values=c("#0080ff","#cccccc")) + theme(panel.background = element_rect(fill='white', colour='black'))#
+p
+p <- qplot(df, x=df$AF, y=df$Risk.Allele.Frequency, main="1000 Genomes vs. NHGRI Risk Allele Freq", ylim = c(0,1), xlab="1000 Genomes Allele Frequency", ylab="NHGRI Reported Risk Allele Frequencies") #
+p <- p + scale_color_manual(name="Predicted Strand",values=c("#0080ff","#cccccc")) + theme(panel.background = element_rect(fill='white', colour='black'))#
+p
+load("/Users/daniel/Documents/git/winter2014/NHGRI_Analysis/data/df.Rda")
+load("/Users/daniel/Documents/git/winter2014/NHGRI_Analysis/data/df.Rda")
+df

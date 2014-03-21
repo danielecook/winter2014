@@ -141,7 +141,7 @@ df$risk_allele_forward[df$chrom_strand == 1] <- as.character(df[df$chrom_strand 
 #--------------------------------#
 
 # Flip allele frequencies to match risk alleles
-df$AF <- ifelse(df$ref_1kg == df$risk_allele_forward, 1-df$AF, df$AF)
+df$allele_freq <- ifelse(df$ref_1kg == df$risk_allele_forward, 1-df$AF, df$AF)
 
 # Plot NHGRI vs. 1000 genomes
 
@@ -168,50 +168,38 @@ for (p in pops) {
   df[[paste0(p,"_risk_allele_freq")]] <- ifelse(df$risk_allele_forward == df$refallele, df[[paste0('refallele_freq-',p)]],df[[paste0('otherallele_freq-',p)]])
 }
 
-
-#-------------------------#
-# Hapmap Allele Frequency #
-#-------------------------#
-
-draw_plot <- function(title, var1 = 'hm_risk_allele_freq', var2 = 'Risk.Allele.Frequency', cfactor='chrom_strand') {
-  p <- qplot(df, x=df[[var1]], y=df[[var2]], main=title, ylim = c(0,1), xlab="HapMap Computed Risk Allele Frequencies", ylab="NHGRI Reported Risk Allele Frequencies", color=factor(df[[cfactor]], exclude=0)) 
-  p <- p + scale_color_manual(name="Predicted Strand",values=c("#0080ff","#cccccc")) + theme(panel.background = element_rect(fill='white', colour='black'))
-  p 
-}
-
-draw_plot('title',var1='AF')
-#--------------------------------------------------------------------------------------------#
-# Examine NHGRI reported allele freq. vs. Hapmap allele freq. (Before and after strand flip) #
-#--------------------------------------------------------------------------------------------#
-
-
-# Plot flipped obs.
-draw_plot("Before Flip")
-ggsave(filename='../analysis/risk_allele_freq/allele_freq_comparison_before_flip.png', plot=last_plot(), width = 10, dpi = 150)
-
-
-# Plot flipped obs.
-draw_plot("After Flip")
-ggsave(filename='../analysis/risk_allele_freq/allele_freq_comparison_after_flip.png', plot=last_plot(), width = 10, dpi = 150)
-
 #--------------------------------------#
 # Mark studies with large divergences. #
 #--------------------------------------#
 
 # Identify hapmap allele freq and reported allele freq discrepancies and flag.qplo
-df$risk_alleles_resids <- residuals(lm(df$Risk.Allele.Frequency ~ df$AF, na.action=na.exclude))
-df$risk_allele_flag <- 1
-df$risk_allele_flag[!is.na(df$risk_alleles_resids) & abs(df$risk_alleles_resids) >0.3] <- 0.5
+df$risk_alleles_resids <- abs(df$AF - df$Risk.Allele.Frequency)
+df$freq <- ifelse(abs(df$risk_alleles_resids) > 0.23 & !is.na(df$risk_alleles_resids), abs(1-df$Risk.Allele.Frequency), df$Risk.Allele.Frequency)
 
-x <- names(df[,(grep('risk_allele_freq',names(df)))])
-x <- x[1:length(x)-1]
-df$emptyFreqs <- rowSums(is.na(df[,x]))
-df$emptyFreqsFlag <- 0.5
-df$emptyFreqsFlag[df$emptyFreqs < 5 & df$emptyFreqs != 11 ] <- 1.0
+png("AFR_AF.png")
+hist(df$AFR_AF)
+dev.off()
 
-p <- qplot(df, x=df$hm_risk_allele_freq, y=df$Risk.Allele.Frequency, main="title", ylim = c(0,1), xlab="HapMap Computed Risk Allele Frequencies", ylab="NHGRI Reported Risk Allele Frequencies", color=factor(df$emptyFreqsFlag, exclude=11)) 
-p <- p + scale_color_manual(name="Predicted Strand",values=c("#0080ff","#cccccc"))  + opts(panel.background = theme_rect(fill='white', colour='black'))
-p 
+png("EUR_AF.png")
+hist(df$EUR_AF)
+dev.off()
+
+png("AMR_AF.png")
+hist(df$AMR_AF)
+dev.off()
+
+df$case_ancestry <- as.character(df$case_ancestry)
+
+q <- df[df$case_ancestry %in% allowed_pops,]
+
+for (pop in c("AMR_AF","ASN_AF","AFR_AF","EUR_AF")) {
+print(pop)
+p <- qplot(q, x=q$freq, y=q[[pop]], geom=c("jitter"), main="1000 Genomes vs. NHGRI Risk Allele Freq", color=q$case_ancestry, ylim = c(0,1), xlab=sprintf("%s: 1kg Allele Frequency",pop), ylab="NHGRI Reported Risk Allele Frequencies") 
+p <- p  + theme(panel.background = element_rect(fill='white', colour='black'))
+p
+ggsave(filename=sprintf('../analysis/risk_allele_freq/%s.png',pop), plot=last_plot(), width = 10, dpi = 150)
+}
+
 
 draw_plot("Residuals > 0.3", cfactor = "risk_allele_flag")
 ggsave(filename='../analysis/risk_allele_freq/allele_freq_resids.png', plot=last_plot(), width = 10, dpi = 150)
@@ -294,7 +282,8 @@ pop_recodes <- c(
   "lean European" = "European",
   "major depressive disorder European" = "European",
   "Malay" = NA,
-  "Singaporean Malay" = NA
+  "Singaporean Malay" = NA,
+  "European American" = "European"
 )
 
 # Test
